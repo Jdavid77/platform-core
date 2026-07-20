@@ -1,0 +1,17 @@
+config:
+  cluster-info:
+    name: platform-sandbox
+    kind-image: kindest/node:v1.31.0
+    wait-seconds: 60
+  network:
+    dockerNetwork: vpc-platform-sandbox
+    vpcCidr: 10.0.0.0/16
+    podCidr: 10.0.1.0/24
+    serviceCidr: 10.0.2.0/24
+    extraPortMappings:
+    - hostPort: 8080
+      containerPort: 80
+      protocol: TCP
+    - hostPort: 8443
+      containerPort: 443
+      protocol: TCP

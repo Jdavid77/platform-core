@@ -1,0 +1,18 @@
+[project]
+name = "platform-core"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "pulumi>=3.0.0,<4.0.0",
+    "pulumi-command>=1.2.1",
+    "pulumi-kubernetes>=4.33.0",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "black>=26.5.1",
+    "isort>=8.0.1",
+    "mypy>=2.3.0",
+    "ruff>=0.15.22",
+]

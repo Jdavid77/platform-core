@@ -1,0 +1,211 @@
+# =============================================================================
+# .github/workflows/pulumi.yaml — Chapter 2 CI/CD Pipeline
+# =============================================================================
+# Deployment pipeline for the platform-core repository.
+#
+# Strategy:
+#   - On every commit to main → preview + deploy to platform-sandbox → validate
+#   - On Git tag             → re-validate sandbox, then deploy to app-dev
+#
+# Prerequisites (Appendix A):
+#   - GitHub self-hosted runner registered with label: local_laptop_runner
+#   - Bitwarden CLI available in runner PATH (for secret injection)
+#   - pulumi, kubectl, flux, bats CLIs installed on runner
+#   - GitHub Environment "app-dev" configured with required reviewers for the
+#     manual approval gate
+#   - Repository secret: PULUMI_ACCESS_TOKEN
+# =============================================================================
+
+name: Pulumi
+
+on:
+  push:
+    branches: [main]
+    tags: ["*"]
+
+jobs:
+  # ── Lint ─────────────────────────────────────────────────────────────────────
+  lint-code:
+    runs-on: [platform-runner]
+    environment: platform-sandbox
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi/
+
+      - name: Check code formatting with black
+        run: uv run --project pulumi/ black --check --diff pulumi/
+
+      - name: Type check with mypy
+        run: uv run --project pulumi/ mypy pulumi/ --ignore-missing-imports
+
+  # ── Static analysis ───────────────────────────────────────────────────────────
+  static-analysis:
+    runs-on: [platform-runner]
+    environment: platform-sandbox
+    needs: lint-code
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi/
+
+      - name: Lint with ruff
+        run: uv run --project pulumi/ ruff check pulumi/
+
+      - name: Security scan with bandit
+        run: uv run --project pulumi/ bandit -r pulumi/ -ll
+
+  # ── Pulumi preview ───────────────────────────────────────────────────────────
+  preview-sandbox:
+    runs-on: [platform-runner]
+    environment: platform-sandbox
+    needs: static-analysis
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi/
+
+      - uses: pulumi/actions@v6
+        with:
+          command: preview
+          stack-name: Jdavid77/platform-core/platform-sandbox
+          color: always
+          work-dir: pulumi
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── Deploy to platform-sandbox ───────────────────────────────────────────────
+  update-sandbox:
+    runs-on: [platform-runner]
+    environment: platform-sandbox
+    needs: preview-sandbox
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi/
+
+      - uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: Jdavid77/platform-core/platform-sandbox
+          color: always
+          work-dir: pulumi
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── Validate platform-sandbox ────────────────────────────────────────────────
+  validate-sandbox:
+    runs-on: [platform-runner]
+    environment: platform-sandbox
+    needs: update-sandbox
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run bats infrastructure tests
+        working-directory: pulumi
+        env:
+          PULUMI_STACK: platform-sandbox
+        run: bats ../tests/infrastructure.bats
+
+  # ── Preview app-dev (tag only) ───────────────────────────────────────────────
+  preview-app-dev:
+    runs-on: [platform-runner]
+    environment: app-dev
+    needs: validate-sandbox
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi/
+
+      - uses: pulumi/actions@v6
+        with:
+          command: preview
+          stack-name: Jdavid77/platform-core/app-dev
+          color: always
+          work-dir: pulumi
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── Deploy to app-dev (tag only, manual approval via GitHub Environment) ─────
+  update-app-dev:
+    runs-on: [platform-runner]
+    needs: preview-app-dev
+    if: startsWith(github.ref, 'refs/tags/')
+    environment: app-dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi/
+
+      - uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: Jdavid77/platform-core/app-dev
+          color: always
+          work-dir: pulumi
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── Validate app-dev ─────────────────────────────────────────────────────────
+  validate-app-dev:
+    runs-on: [platform-runner]
+    environment: app-dev
+    needs: update-app-dev
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run bats infrastructure tests
+        working-directory: pulumi
+        env:
+          PULUMI_STACK: Jdavid77/platform-core/app-dev
+        run: bats ../tests/infrastructure.bats
