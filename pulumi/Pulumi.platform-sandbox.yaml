@@ -1,7 +1,7 @@
 config:
   cluster-info:
     name: platform-sandbox
-    kind-image: kindest/node:v1.31.0
+    kind-image: kindest/node:v1.36.1
     wait-seconds: 60
   network:
     dockerNetwork: vpc-platform-sandbox
