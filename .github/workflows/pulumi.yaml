@@ -69,7 +69,7 @@ jobs:
         run: uv run --project pulumi/ ruff check pulumi/
 
       - name: Security scan with bandit
-        run: uv run --project pulumi/ bandit -r pulumi/ -ll
+        run: uv run --project pulumi/ bandit -r pulumi/ -ll --exclude pulumi/.venv
 
   # ── Pulumi preview ───────────────────────────────────────────────────────────
   preview-sandbox:
