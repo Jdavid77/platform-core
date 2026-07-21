@@ -1,0 +1,17 @@
+config:
+  cluster-info:
+    name: app-dev
+    kind-image: kindest/node:v1.31.0
+    wait-seconds: 60
+  network:
+    dockerNetwork: vpc-app-dev
+    vpcCidr: 10.1.0.0/16
+    podCidr: 10.1.1.0/24
+    serviceCidr: 10.1.2.0/24
+    extraPortMappings:
+    - hostPort: 9090
+      containerPort: 80
+      protocol: TCP
+    - hostPort: 9443
+      containerPort: 443
+      protocol: TCP

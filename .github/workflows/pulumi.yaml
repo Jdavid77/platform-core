@@ -27,7 +27,6 @@ jobs:
   # ── Lint ─────────────────────────────────────────────────────────────────────
   lint-code:
     runs-on: self-hosted
-    environment: platform-sandbox
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +49,6 @@ jobs:
   # ── Static analysis ───────────────────────────────────────────────────────────
   static-analysis:
     runs-on: self-hosted
-    environment: platform-sandbox
     needs: lint-code
     steps:
       - uses: actions/checkout@v4
@@ -74,7 +72,6 @@ jobs:
   # ── Pulumi preview ───────────────────────────────────────────────────────────
   preview-sandbox:
     runs-on: self-hosted
-    environment: platform-sandbox
     needs: static-analysis
     steps:
       - uses: actions/checkout@v4
@@ -98,11 +95,18 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
+  # ── Manual approval gate for platform-sandbox ─────────────────────────────────
+  approve-sandbox:
+    runs-on: self-hosted
+    needs: preview-sandbox
+    environment: platform-sandbox
+    steps:
+      - run: echo "Deployment approved"
+
   # ── Deploy to platform-sandbox ───────────────────────────────────────────────
   update-sandbox:
     runs-on: self-hosted
-    environment: platform-sandbox
-    needs: preview-sandbox
+    needs: approve-sandbox
     steps:
       - uses: actions/checkout@v4
 
@@ -128,7 +132,6 @@ jobs:
   # ── Validate platform-sandbox ────────────────────────────────────────────────
   validate-sandbox:
     runs-on: self-hosted
-    environment: platform-sandbox
     needs: update-sandbox
     steps:
       - uses: actions/checkout@v4
@@ -142,7 +145,6 @@ jobs:
   # ── Preview app-dev (tag only) ───────────────────────────────────────────────
   preview-app-dev:
     runs-on: self-hosted
-    environment: app-dev
     needs: validate-sandbox
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -167,12 +169,20 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-  # ── Deploy to app-dev (tag only, manual approval via GitHub Environment) ─────
-  update-app-dev:
+  # ── Manual approval gate for app-dev ─────────────────────────────────────────
+  approve-app-dev:
     runs-on: self-hosted
     needs: preview-app-dev
     if: startsWith(github.ref, 'refs/tags/')
     environment: app-dev
+    steps:
+      - run: echo "Deployment approved"
+
+  # ── Deploy to app-dev (tag only) ─────────────────────────────────────────────
+  update-app-dev:
+    runs-on: self-hosted
+    needs: approve-app-dev
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
 
@@ -198,7 +208,6 @@ jobs:
   # ── Validate app-dev ─────────────────────────────────────────────────────────
   validate-app-dev:
     runs-on: self-hosted
-    environment: app-dev
     needs: update-app-dev
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -207,5 +216,5 @@ jobs:
       - name: Run bats infrastructure tests
         working-directory: pulumi
         env:
-          PULUMI_STACK: Jdavid77/platform-core/app-dev
+          PULUMI_STACK: app-dev
         run: bats ../tests/infrastructure.bats
