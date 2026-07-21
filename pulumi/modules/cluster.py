@@ -12,6 +12,7 @@ class ClusterConfig:
     kind_image: Optional[str] = None
     wait_seconds: int = 60
 
+
 def create_kind_cluster(
     cfg: ClusterConfig,
     cfg_file_path: str,

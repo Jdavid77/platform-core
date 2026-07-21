@@ -12,6 +12,7 @@ class PortMap:
     containerPort: int
     protocol: str = "TCP"
 
+
 @dataclass
 class NetworkConfig:
     dockerNetwork: str
@@ -20,6 +21,7 @@ class NetworkConfig:
     serviceCidr: str
     extraPortMappings: Optional[List[PortMap]] = None
 
+
 def ensure_docker_network(cfg: NetworkConfig) -> local.Command:
     """Create (or ensure) the Docker bridge network"""
     return local.Command(
@@ -27,6 +29,7 @@ def ensure_docker_network(cfg: NetworkConfig) -> local.Command:
         create=f"docker network create {cfg.dockerNetwork} --subnet {cfg.vpcCidr} || true",
         delete=f"docker network rm {cfg.dockerNetwork} || true",
     )
+
 
 def render_kind_config(net: NetworkConfig) -> str:
     """Produce a Kind config YAML bound to the Docker network + CIDRs."""
@@ -43,6 +46,7 @@ def render_kind_config(net: NetworkConfig) -> str:
         "nodes": [node, {"role": "worker"}],
     }
     return yaml.safe_dump(kind_cfg, sort_keys=False)
+
 
 def write_kind_config(cluster_name: str, yaml_content: str) -> local.Command:
     """Write the Kind config YAML to a stable path for Pulumi runs."""
