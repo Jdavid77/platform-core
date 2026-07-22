@@ -15,39 +15,9 @@ REPO_ROOT="${SCRIPT_DIR}/.."
 
 NAMESPACE="${FLUX_NAMESPACE:-flux-system}"
 SMOKE_HOST="${SMOKE_HOST:-platform-sandbox.local}"
-RECONCILE_TIMEOUT="${RECONCILE_TIMEOUT:-300}"
 
-reconcile() {
-  local kustomization="$1"
-  echo "==> Forcing Flux reconciliation: ${kustomization} in ${NAMESPACE}"
-  flux reconcile kustomization "${kustomization}" -n "${NAMESPACE}" --with-source
-
-  echo "==> Waiting for ${kustomization} to be Ready..."
-  local deadline=$(( $(date +%s) + RECONCILE_TIMEOUT ))
-  while true; do
-    local status
-    status=$(flux get kustomization "${kustomization}" \
-      -n "${NAMESPACE}" -o json 2>/dev/null \
-      | jq -r '.status.conditions[] | select(.type=="Ready") | .status' \
-      || echo "Unknown")
-
-    if [ "${status}" = "True" ]; then
-      echo "==> ${kustomization} is Ready."
-      break
-    fi
-
-    if [ "$(date +%s)" -ge "${deadline}" ]; then
-      echo "ERROR: ${kustomization} did not reconcile within ${RECONCILE_TIMEOUT}s"
-      flux get kustomization "${kustomization}" -n "${NAMESPACE}"
-      exit 1
-    fi
-
-    echo "    Status: ${status} — waiting 5s..."
-    sleep 5
-  done
-}
-
-reconcile $PULUMI_STACK
+echo "==> Forcing Flux reconciliation: ${PULUMI_STACK} in ${NAMESPACE}"
+flux reconcile kustomization "${PULUMI_STACK}" -n "${NAMESPACE}" --with-source
 
 # ── Gateway smoke test ────────────────────────────────────────────────────────
 echo "==> Running Gateway smoke test (Host: ${SMOKE_HOST})"
