@@ -4,7 +4,6 @@ from typing import List, Optional
 import pulumi_kubernetes as k8s
 from pulumi_kubernetes.helm.v3 import ReleaseArgs, Release
 from pulumi import ResourceOptions
-from pulumi_kubernetes import Provider
 
 
 @dataclass
