@@ -64,7 +64,11 @@ class ClusterManager:
     def create(self) -> Tuple[local.Command, local.Command, Provider]:
         kind_yaml = self.render_kind_config()
         kind_cfg_file = self.write_kind_config(kind_yaml)
-        replace_triggers = [kind_yaml, self.net.dockerNetwork, self.config.kind_image or ""]
+        replace_triggers = [
+            kind_yaml,
+            self.net.dockerNetwork,
+            self.config.kind_image or "",
+        ]
 
         create_cmd = (
             f'KIND_EXPERIMENTAL_DOCKER_NETWORK="{self.net.dockerNetwork}" '

@@ -11,12 +11,14 @@ from pulumi_kubernetes import Provider
 class FluxOperatorConfig:
     version: Optional[str] = None
     namespace: str = "flux-system"
-    components: List[str] = field(default_factory=lambda: [
-        "source-controller",
-        "kustomize-controller",
-        "helm-controller",
-        "notification-controller"
-    ])
+    components: List[str] = field(
+        default_factory=lambda: [
+            "source-controller",
+            "kustomize-controller",
+            "helm-controller",
+            "notification-controller",
+        ]
+    )
     url: Optional[str] = None
     sourceName: Optional[str] = None
 
@@ -49,7 +51,9 @@ class FluxOperatorManager:
                     },
                 },
             ),
-            opts=ResourceOptions(provider=self.provider, depends_on=deps, retain_on_delete=True),
+            opts=ResourceOptions(
+                provider=self.provider, depends_on=deps, retain_on_delete=True
+            ),
         )
 
     def install_instance(self, operator: Release) -> k8s.apiextensions.CustomResource:
@@ -61,8 +65,7 @@ class FluxOperatorManager:
                 "ref": "refs/heads/main",
                 "interval": "30m",
                 "name": self.config.sourceName,
-                "path": f"clusters/{self.stack_name}"
-
+                "path": f"clusters/{self.stack_name}",
             }
             if self.config.url
             else None
@@ -86,7 +89,9 @@ class FluxOperatorManager:
                 namespace=self.config.namespace,
             ),
             spec=spec,
-            opts=ResourceOptions(provider=self.provider, depends_on=[operator], retain_on_delete=True),
+            opts=ResourceOptions(
+                provider=self.provider, depends_on=[operator], retain_on_delete=True
+            ),
         )
 
     def install(self):

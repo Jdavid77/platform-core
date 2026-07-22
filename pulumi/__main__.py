@@ -15,7 +15,8 @@ net_cfg = network.NetworkConfig(
     serviceCidr=network_obj["serviceCidr"],
     extraPortMappings=[
         network.PortMap(**pm) for pm in network_obj.get("extraPortMappings", [])
-    ] or None,
+    ]
+    or None,
 )
 
 # Network
