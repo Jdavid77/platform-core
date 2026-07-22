@@ -67,6 +67,7 @@ class ClusterManager:
         replace_triggers = [
             kind_yaml,
             self.net.dockerNetwork,
+            self.net.vpcCidr,
             self.config.kind_image or "",
         ]
 

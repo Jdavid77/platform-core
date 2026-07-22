@@ -21,8 +21,15 @@ class NetworkConfig:
 
 
 def ensure_docker_network(cfg: NetworkConfig) -> local.Command:
+    # Idempotent: succeed only if network already exists with the correct subnet
+    create = (
+        f"docker network create {cfg.dockerNetwork} --subnet {cfg.vpcCidr} 2>/dev/null || "
+        f"docker network inspect {cfg.dockerNetwork} "
+        f"--format '{{{{range .IPAM.Config}}}}{{{{.Subnet}}}}{{{{end}}}}' | grep -qF {cfg.vpcCidr}"
+    )
     return local.Command(
         "docker:net",
-        create=f"docker network create {cfg.dockerNetwork} --subnet {cfg.vpcCidr} || true",
+        create=create,
         delete=f"docker network rm {cfg.dockerNetwork} || true",
+        triggers=[cfg.dockerNetwork, cfg.vpcCidr],
     )

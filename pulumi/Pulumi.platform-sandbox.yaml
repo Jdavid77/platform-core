@@ -6,8 +6,8 @@ config:
   network:
     dockerNetwork: vpc-platform-sandbox
     vpcCidr: 10.2.0.0/16
-    podCidr: 10.2.1.0/20
-    serviceCidr: 10.2.16.0/20
+    podCidr: 10.2.128.0/20
+    serviceCidr: 10.2.144.0/20
     extraPortMappings:
     - hostPort: 8080
       containerPort: 80

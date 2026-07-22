@@ -1,3 +1,4 @@
 *.pyc
 venv/
 .actions-runner
+pulumi/.pulumi/kind/
