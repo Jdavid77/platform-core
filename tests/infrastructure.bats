@@ -22,3 +22,8 @@ teardown_file() {
   node_count=$(echo "$output" | wc -l)
   [ "$node_count" -ge 1 ]
 }
+
+@test "flux is healthy" {
+  run flux check --pre
+  [ "$status" -eq 0 ]
+}
