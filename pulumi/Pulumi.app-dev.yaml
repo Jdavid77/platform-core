@@ -6,8 +6,8 @@ config:
   network:
     dockerNetwork: vpc-app-dev
     vpcCidr: 10.1.0.0/16
-    podCidr: 10.1.1.0/24
-    serviceCidr: 10.1.2.0/24
+    podCidr: 10.1.1.0/20
+    serviceCidr: 10.1.16.0/20
     extraPortMappings:
     - hostPort: 9090
       containerPort: 80
@@ -15,3 +15,6 @@ config:
     - hostPort: 9443
       containerPort: 443
       protocol: TCP
+  flux:
+    version: "2.9.1"
+    url: "https://github.com/Jdavid77/platform-gitops"
