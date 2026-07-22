@@ -1,28 +1,20 @@
 # =============================================================================
-# .github/workflows/pulumi.yaml — Chapter 2 CI/CD Pipeline
+# .github/workflows/pulumi-sandbox.yaml — platform-sandbox pipeline
 # =============================================================================
-# Deployment pipeline for the platform-core repository.
-#
-# Strategy:
-#   - On every commit to main → preview + deploy to platform-sandbox → validate
-#   - On Git tag             → re-validate sandbox, then deploy to app-dev
+# Runs on every push to main.
 #
 # Prerequisites (Appendix A):
 #   - GitHub self-hosted runner registered with label: local_laptop_runner
-#   - Bitwarden CLI available in runner PATH (for secret injection)
 #   - pulumi, kubectl, flux, bats CLIs installed on runner
-#   - GitHub Environment "app-dev" configured with required reviewers for the
-#     manual approval gate
+#   - GitHub Environment "platform-sandbox" configured with required reviewers
 #   - Repository secret: PULUMI_ACCESS_TOKEN
 # =============================================================================
 
-name: Pulumi
+name: Pulumi Sandbox
 
 on:
-  workflow_dispatch:
   push:
     branches: [main]
-    tags: ["*"]
 
 jobs:
   # ── Lint ─────────────────────────────────────────────────────────────────────
@@ -96,7 +88,7 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-  # ── Manual approval gate for platform-sandbox ─────────────────────────────────
+  # ── Manual approval gate ──────────────────────────────────────────────────────
   approve-sandbox:
     runs-on: self-hosted
     needs: preview-sandbox
@@ -104,7 +96,7 @@ jobs:
     steps:
       - run: echo "Deployment approved"
 
-  # ── Deploy to platform-sandbox ───────────────────────────────────────────────
+  # ── Deploy ───────────────────────────────────────────────────────────────────
   update-sandbox:
     runs-on: self-hosted
     needs: approve-sandbox
@@ -130,92 +122,35 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-  # ── Validate platform-sandbox ────────────────────────────────────────────────
+  # ── Validate ─────────────────────────────────────────────────────────────────
   validate-sandbox:
     runs-on: self-hosted
     needs: update-sandbox
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run bats infrastructure tests
+      - name: Export kubeconfig
         working-directory: pulumi
         env:
           PULUMI_STACK: platform-sandbox
-        run: bats ../tests/infrastructure.bats
-
-  # ── Preview app-dev (tag only) ───────────────────────────────────────────────
-  preview-app-dev:
-    runs-on: self-hosted
-    needs: validate-sandbox
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache uv virtual environment
-        uses: actions/cache@v4
-        with:
-          path: pulumi/.venv
-          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi/uv.lock') }}
-          restore-keys: uv-venv-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: uv sync --project pulumi/
-
-      - uses: pulumi/actions@v6
-        with:
-          command: preview
-          stack-name: Jdavid77/platform-core/app-dev
-          color: always
-          work-dir: pulumi
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-
-  # ── Manual approval gate for app-dev ─────────────────────────────────────────
-  approve-app-dev:
-    runs-on: self-hosted
-    needs: preview-app-dev
-    if: startsWith(github.ref, 'refs/tags/')
-    environment: app-dev
-    steps:
-      - run: echo "Deployment approved"
-
-  # ── Deploy to app-dev (tag only) ─────────────────────────────────────────────
-  update-app-dev:
-    runs-on: self-hosted
-    needs: approve-app-dev
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache uv virtual environment
-        uses: actions/cache@v4
-        with:
-          path: pulumi/.venv
-          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi/uv.lock') }}
-          restore-keys: uv-venv-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: uv sync --project pulumi/
-
-      - uses: pulumi/actions@v6
-        with:
-          command: up
-          stack-name: Jdavid77/platform-core/app-dev
-          color: always
-          work-dir: pulumi
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-
-  # ── Validate app-dev ─────────────────────────────────────────────────────────
-  validate-app-dev:
-    runs-on: self-hosted
-    needs: update-app-dev
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - uses: actions/checkout@v4
+        run: |
+          pulumi stack output kubeconfig --show-secrets --stack "$PULUMI_STACK" > kubeconfig.yaml
+          echo "KUBECONFIG=$PWD/kubeconfig.yaml" >> "$GITHUB_ENV"
+          DOCKER_NETWORK=$(pulumi stack output dockerNetwork --stack "$PULUMI_STACK")
+          echo "DOCKER_NETWORK=$DOCKER_NETWORK" >> "$GITHUB_ENV"
 
       - name: Run bats infrastructure tests
-        working-directory: pulumi
         env:
-          PULUMI_STACK: app-dev
-        run: bats ../tests/infrastructure.bats
+          PULUMI_STACK: platform-sandbox
+        run: bats tests/infrastructure.bats
+
+      - name: Force Flux reconciliation and smoke test
+        env:
+          PULUMI_STACK: platform-sandbox
+          SMOKE_HOST: platform-sandbox.local
+        run: bash scripts/flux_reconcile.sh
+
+      - name: Clean up kubeconfig
+        if: always()
+        working-directory: pulumi
+        run: rm -f kubeconfig.yaml

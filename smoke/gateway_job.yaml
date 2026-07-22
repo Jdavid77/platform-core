@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: smoke-gateway
+  namespace: istio-system
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: curl
+          image: curlimages/curl:8.10.1
+          env:
+            - name: SMOKE_HOST
+              value: "platform-sandbox.local"
+          args:
+            - sh
+            - -c
+            - |
+              set -e
+              H="${SMOKE_HOST:-platform-sandbox.local}"
+              echo "Testing gateway with Host: $H"
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "Host: $H" \
+                --max-time 10 \
+                --retry 3 \
+                --retry-delay 2 \
+                http://istio-ingressgateway.istio-system.svc.cluster.local/)
+              echo "Gateway response: HTTP $STATUS"
+              [ "$STATUS" = "200" ] || { echo "ERROR: expected 200, got $STATUS"; exit 1; }
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

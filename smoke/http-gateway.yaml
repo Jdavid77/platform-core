@@ -1,0 +1,33 @@
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: smoke-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: smoke-vs
+  namespace: istio-system
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - smoke-gateway
+  http:
+    - route:
+        - destination:
+            host: smoke-nginx.istio-system.svc.cluster.local
+            port:
+              number: 80
