@@ -1,7 +1,7 @@
 """A Python Pulumi program"""
 
 import pulumi
-from modules import network, cluster
+from modules import network, cluster, flux
 
 config = pulumi.Config()
 network_obj = config.require_object("network")
@@ -15,29 +15,40 @@ net_cfg = network.NetworkConfig(
     serviceCidr=network_obj["serviceCidr"],
     extraPortMappings=[
         network.PortMap(**pm) for pm in network_obj.get("extraPortMappings", [])
-    ]
-    or None,
+    ] or None,
 )
-# Network scaffolding + kind config
+
+# Network
 docker_net = network.ensure_docker_network(net_cfg)
-kind_yaml = network.render_kind_config(net_cfg)
-kind_cfg_file = network.write_kind_config(cls_info["name"], kind_yaml)
 
-
+# Cluster + k8s provider
 cls_cfg = cluster.ClusterConfig(
     name=cls_info["name"],
     kind_image=cls_info.get("kind-image"),
     wait_seconds=cls_info.get("wait-seconds"),
 )
-# Cluster + k8s provider
-create, kubeconfig, k8s = cluster.create_kind_cluster(
-    cls_cfg,
-    cfg_file_path=f".pulumi/kind/{cls_cfg.name}.yaml",
-    docker_network=net_cfg.dockerNetwork,
-    depends_on=[docker_net, kind_cfg_file],
-    replace_triggers=[kind_yaml, net_cfg.dockerNetwork, cls_cfg.kind_image or ""],
-)
 
+cluster_manager = cluster.ClusterManager(
+    config=cls_cfg,
+    net=net_cfg,
+    depends_on=[docker_net],
+)
+create, kubeconfig, k8s = cluster_manager.create()
+
+# Flux
+flux_obj = config.require_object("flux")
+flux_manager = flux.FluxOperatorManager(
+    config=flux.FluxOperatorConfig(
+        version=flux_obj.get("version"),
+        url=flux_obj.get("url"),
+        sourceName=pulumi.get_stack(),
+    ),
+    stack_name=pulumi.get_stack(),
+    provider=k8s,
+)
+flux_manager.install()
+
+# Outputs
 pulumi.export("kubeconfig", pulumi.Output.secret(kubeconfig.stdout))
 pulumi.export("dockerNetwork", network_obj["dockerNetwork"])
 pulumi.export("clusterName", cls_info["name"])
