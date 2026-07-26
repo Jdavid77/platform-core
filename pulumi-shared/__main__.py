@@ -1,7 +1,5 @@
 """Shared platform infrastructure — Auth0 IdP"""
 
-import pulumi
-
 from modules.auth0 import (
     GROUPS_CLAIM,
     Auth0ClientConfig,
@@ -10,6 +8,8 @@ from modules.auth0 import (
     create_kubernetes_client,
     create_role,
 )
+
+import pulumi
 
 # Config
 config = pulumi.Config()

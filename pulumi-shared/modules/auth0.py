@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 import pulumi_auth0 as auth0
+
 from pulumi import ResourceOptions
 
 
