@@ -14,10 +14,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SCRIPT_DIR}/.."
 
 NAMESPACE="${FLUX_NAMESPACE:-flux-system}"
+INGRESS_NAMESPACE="${INGRESS_NAMESPACE:-istio-system}"
 SMOKE_HOST="${SMOKE_HOST:-platform-sandbox.local}"
 
 echo "==> Forcing Flux reconciliation: ${PULUMI_STACK} in ${NAMESPACE}"
 flux reconcile kustomization "${PULUMI_STACK}" -n "${NAMESPACE}" --with-source
+
+# ── Wait for istio-ingress HelmRelease ───────────────────────────────────────
+echo "==> Waiting for HelmRelease istio-ingress to be Ready (namespace: ${INGRESS_NAMESPACE})"
+kubectl -n "flux-system" wait helmrelease/istio-ingress \
+  --for=condition=Ready \
+  --timeout=300s \
+  || {
+    echo "ERROR: HelmRelease istio-ingress did not become Ready — current status:"
+    kubectl -n "${INGRESS_NAMESPACE}" get helmrelease istio-ingress -o jsonpath='{.status.conditions}' | jq .
+    exit 1
+  }
 
 # ── Gateway smoke test ────────────────────────────────────────────────────────
 echo "==> Running Gateway smoke test (Host: ${SMOKE_HOST})"
