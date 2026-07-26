@@ -17,7 +17,7 @@ name: Pulumi Sandbox
 on:
   push:
     branches: [main]
-    paths: ["pulumi/**",".github/pulumi-sandbox.yaml"]
+    paths: ["pulumi/**",".github/workflows/pulumi-sandbox.yaml"]
     tags: ["v*"]
 
 jobs:
