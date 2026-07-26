@@ -65,10 +65,29 @@ jobs:
       - name: Security scan with bandit
         run: uv run --project pulumi/ bandit -r pulumi/ -ll --exclude pulumi/.venv
 
+  # ── Pre-flight checks ────────────────────────────────────────────────────────
+  pre-flight:
+    runs-on: self-hosted
+    needs: [lint-code, static-analysis]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Docker is running
+        run: docker info
+
+      - name: Verify OIDC configured for platform-sandbox
+        working-directory: pulumi-shared
+        run: |
+          pulumi stack output auth0_issuer_url | grep -q 'https://'
+          pulumi stack output auth0_client_id_platform-sandbox | grep -qv '^$'
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+
   # ── Pulumi preview ───────────────────────────────────────────────────────────
   preview-sandbox:
     runs-on: self-hosted
-    needs: [lint-code, static-analysis]
+    needs: pre-flight
     steps:
       - uses: actions/checkout@v4
 
@@ -162,11 +181,30 @@ jobs:
   # App-Dev — only on release tags (v*), runs after sandbox validates
   # =============================================================================
 
+  # ── Pre-flight checks ────────────────────────────────────────────────────────
+  pre-flight-app-dev:
+    if: github.ref_type == 'tag'
+    runs-on: self-hosted
+    needs: validate-sandbox
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Docker is running
+        run: docker info
+
+      - name: Verify OIDC configured for app-dev
+        working-directory: pulumi-shared
+        run: |
+          pulumi stack output auth0_issuer_url | grep -q 'https://'
+          pulumi stack output auth0_client_id_app-dev | grep -qv '^$'
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
   # ── Pulumi preview ───────────────────────────────────────────────────────────
   preview-app-dev:
     if: github.ref_type == 'tag'
     runs-on: self-hosted
-    needs: validate-sandbox
+    needs: pre-flight-app-dev
     steps:
       - uses: actions/checkout@v4
 
