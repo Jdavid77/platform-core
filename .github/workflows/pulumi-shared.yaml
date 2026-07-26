@@ -15,7 +15,7 @@ name: Pulumi Shared
 on:
   push:
     branches: [main]
-    paths: ["pulumi-shared/**"]
+    paths: ["pulumi-shared/**",".github/pulumi-shared.yaml"]
 
 jobs:
   # ── Lint ─────────────────────────────────────────────────────────────────────
