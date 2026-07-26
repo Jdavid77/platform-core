@@ -3,11 +3,20 @@
 import pulumi
 from modules import network, cluster, flux
 
+# Config
+
 config = pulumi.Config()
 network_obj = config.require_object("network")
 cls_info = config.require_object("cluster-info")
 
-# Map config -> dataclasses
+# Shared Stack
+
+shared = pulumi.StackReference("Jdavid77/pulumi-shared/shared")
+issuer_url = shared.get_output("auth0_issuer_url")
+client_id = shared.get_output(f"auth0_client_id_{pulumi.get_stack()}")
+
+# Network
+
 net_cfg = network.NetworkConfig(
     dockerNetwork=network_obj["dockerNetwork"],
     vpcCidr=network_obj["vpcCidr"],
@@ -19,14 +28,23 @@ net_cfg = network.NetworkConfig(
     or None,
 )
 
-# Network
 docker_net = network.ensure_docker_network(net_cfg)
 
-# Cluster + k8s provider
+
+# OIDC
+
+oidc_cfg = cluster.OidcConfig(
+    issuer_url=issuer_url,
+    client_id=client_id,
+)
+
+# Cluster
+
 cls_cfg = cluster.ClusterConfig(
     name=cls_info["name"],
     kind_image=cls_info.get("kind-image"),
     wait_seconds=cls_info.get("wait-seconds"),
+    oidc=oidc_cfg,
 )
 
 cluster_manager = cluster.ClusterManager(
@@ -34,7 +52,10 @@ cluster_manager = cluster.ClusterManager(
     net=net_cfg,
     depends_on=[docker_net],
 )
-create, kubeconfig, k8s = cluster_manager.create()
+
+cluster_cmd, kind_yaml = cluster_manager.create()
+kubeconfig = cluster_manager.get_kubeconfig(cluster_cmd)
+k8s = cluster_manager.get_provider(kubeconfig)
 
 # Flux
 flux_obj = config.require_object("flux")
@@ -53,3 +74,4 @@ flux_manager.install()
 pulumi.export("kubeconfig", pulumi.Output.secret(kubeconfig.stdout))
 pulumi.export("dockerNetwork", network_obj["dockerNetwork"])
 pulumi.export("clusterName", cls_info["name"])
+pulumi.export("kindConfig", pulumi.Output.concat(kind_yaml))

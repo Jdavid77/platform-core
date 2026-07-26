@@ -1,106 +1,118 @@
-import base64
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
+import pulumi
 import pulumi_command.local as local
 import yaml
-from pulumi import ResourceOptions
+from pulumi import Input, Output, ResourceOptions
 from pulumi_kubernetes import Provider
 
 from .network import NetworkConfig
 
 
 @dataclass
+class OidcConfig:
+    issuer_url: Input[str]
+    client_id: Input[str] = "kubernetes"
+    username_claim: str = "email"
+    groups_claim: str = "https://platform.internal/roles"
+
+
+@dataclass
 class ClusterConfig:
     name: str
+    oidc: OidcConfig
     kind_image: Optional[str] = None
     wait_seconds: int = 60
 
 
 class ClusterManager:
 
-    def __init__(
-        self,
-        config: ClusterConfig,
-        net: NetworkConfig,
-        depends_on=None,
-    ):
+    def __init__(self, config: ClusterConfig, net: NetworkConfig, depends_on=None):
         self.config = config
         self.net = net
         self.depends_on = depends_on or []
 
-    def render_kind_config(self) -> str:
-        node: Dict[str, Any] = {"role": "control-plane"}
-        if self.net.extraPortMappings:
-            node["extraPortMappings"] = [vars(pm) for pm in self.net.extraPortMappings]
-        kind_cfg: Dict[str, Any] = {
-            "kind": "Cluster",
-            "apiVersion": "kind.x-k8s.io/v1alpha4",
-            "networking": {
-                "podSubnet": self.net.podCidr,
-                "serviceSubnet": self.net.serviceCidr,
-            },
-            "nodes": [node, {"role": "worker"}],
-        }
-        return yaml.safe_dump(kind_cfg, sort_keys=False)
+    def _render_kind_config(self) -> Output[str]:
+        oidc = self.config.oidc
 
-    def write_kind_config(self, yaml_content: str) -> local.Command:
-        path = f".pulumi/kind/{self.config.name}.yaml"
-        b64 = base64.b64encode(yaml_content.encode("utf-8")).decode("ascii")
-        script = (
-            "bash -euo pipefail -lc "
-            f"'mkdir -p .pulumi/kind\n"
-            f'base64 -d > {path} <<"EOF"\n'
-            f"{b64}\n"
-            "EOF\n'"
-        )
-        return local.Command(
-            "kind:cfg",
-            create=script,
-            delete=f'rm -f "{path}"',
-            triggers=[yaml_content, path],
-        )
+        def build(vals: Tuple[str, str]) -> str:
+            issuer_url, client_id = vals
+            api_server_cfg: Dict[str, Any] = {
+                "extraArgs": {
+                    "oidc-issuer-url": issuer_url,
+                    "oidc-client-id": client_id,
+                    "oidc-username-claim": oidc.username_claim,
+                    "oidc-groups-claim": oidc.groups_claim,
+                }
+            }
+            node: Dict[str, Any] = {
+                "role": "control-plane",
+                "extraPortMappings": [vars(pm) for pm in (self.net.extraPortMappings or [])],
+                "kubeadmConfigPatches": [
+                    yaml.safe_dump({"kind": "ClusterConfiguration", "apiServer": api_server_cfg})
+                ],
+            }
+            return yaml.safe_dump(
+                {
+                    "kind": "Cluster",
+                    "apiVersion": "kind.x-k8s.io/v1alpha4",
+                    "networking": {
+                        "podSubnet": self.net.podCidr,
+                        "serviceSubnet": self.net.serviceCidr,
+                    },
+                    "nodes": [node, {"role": "worker"}],
+                },
+                sort_keys=False,
+            )
 
-    def create(self) -> Tuple[local.Command, local.Command, Provider]:
-        kind_yaml = self.render_kind_config()
-        kind_cfg_file = self.write_kind_config(kind_yaml)
-        replace_triggers = [
-            kind_yaml,
-            self.net.dockerNetwork,
-            self.net.vpcCidr,
-            self.config.kind_image or "",
-        ]
+        return Output.all(
+            Output.from_input(oidc.issuer_url),
+            Output.from_input(oidc.client_id),
+        ).apply(build)
 
+    def create(self) -> Tuple[local.Command, Output[str]]:
+        kind_yaml = self._render_kind_config()
         create_cmd = (
+            f"printf '%s' \"$KIND_CONFIG\" | "
             f'KIND_EXPERIMENTAL_DOCKER_NETWORK="{self.net.dockerNetwork}" '
-            "kind create cluster"
+            f"kind create cluster"
             f" --name {self.config.name}"
-            f' --config ".pulumi/kind/{self.config.name}.yaml"'
+            f" --config -"
             f" --image {self.config.kind_image}"
             f" --wait {self.config.wait_seconds}s"
         )
-        # delete_before_replace=True because kind cannot upgrade a cluster in-place
         cluster = local.Command(
             "kind:create",
             create=create_cmd,
             delete=f"kind delete cluster --name {self.config.name}",
-            triggers=replace_triggers,
+            environment={"KIND_CONFIG": kind_yaml},
+            triggers=[
+                kind_yaml,
+                self.net.dockerNetwork,
+                self.net.vpcCidr,
+                self.config.kind_image or "",
+            ],
             opts=ResourceOptions(
-                depends_on=self.depends_on + [kind_cfg_file],
-                delete_before_replace=True,
+                depends_on=self.depends_on, delete_before_replace=True
             ),
         )
-        get_kubeconfig = f"kind get kubeconfig --name {self.config.name}"
-        kubeconfig = local.Command(
+        return cluster, kind_yaml
+
+    def get_kubeconfig(self, cluster: local.Command) -> local.Command:
+        get_cmd = f"kind get kubeconfig --name {self.config.name}"
+        return local.Command(
             "kind:kubeconfig",
-            create=get_kubeconfig,
-            update=get_kubeconfig,
+            create=get_cmd,
+            update=get_cmd,
             triggers=[cluster.id],
             opts=ResourceOptions(depends_on=[cluster]),
         )
-        provider = Provider(
+
+    def get_provider(self, kubeconfig: local.Command) -> Provider:
+        return Provider(
             "k8s",
             kubeconfig=kubeconfig.stdout,
             enable_server_side_apply=True,
         )
-        return cluster, kubeconfig, provider
