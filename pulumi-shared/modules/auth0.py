@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 
 import pulumi_auth0 as auth0
-
 from pulumi import ResourceOptions
 
 
@@ -37,22 +36,25 @@ def create_kubernetes_client(config: Auth0ClientConfig) -> auth0.Client:
     )
 
 
-def create_role(config: Auth0RoleConfig) -> None:
-    auth0.Role(
+def create_role(config: Auth0RoleConfig) -> auth0.Role:
+    return auth0.Role(
         f"auth0:role:{config.name}",
         auth0.RoleArgs(name=config.name, description=config.description),
     )
 
 
+CLAIM_NAMESPACE = "https://platform.internal"
+GROUPS_CLAIM = f"{CLAIM_NAMESPACE}/roles"
+
 # Action code that copies app_metadata.groups into the ID token
 # https://auth0.com/docs/manage-users/access-control/sample-use-cases-actions-with-authorization#add-user-roles-to-tokens
-_GROUPS_ACTION_CODE = """\
-exports.onExecutePostLogin = async (event, api) => {
-  const namespace = 'https://platform.internal';
-  if (event.authorization) {
-    api.idToken.setCustomClaim(`${namespace}/roles`, event.authorization.roles);
-  }
-};
+_GROUPS_ACTION_CODE = f"""\
+exports.onExecutePostLogin = async (event, api) => {{
+  const namespace = '{CLAIM_NAMESPACE}';
+  if (event.authorization) {{
+    api.idToken.setCustomClaim(`${{namespace}}/roles`, event.authorization.roles);
+  }}
+}};
 """
 
 

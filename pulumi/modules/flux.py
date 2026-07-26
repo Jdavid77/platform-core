@@ -93,6 +93,6 @@ class FluxOperatorManager:
             ),
         )
 
-    def install(self):
+    def install(self) -> tuple[Release, k8s.apiextensions.CustomResource]:
         operator = self._install_operator()
         return operator, self._install_instance(operator)

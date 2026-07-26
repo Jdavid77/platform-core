@@ -1,14 +1,15 @@
 """Shared platform infrastructure — Auth0 IdP"""
 
+import pulumi
+
 from modules.auth0 import (
+    GROUPS_CLAIM,
     Auth0ClientConfig,
     Auth0RoleConfig,
     create_groups_action,
     create_kubernetes_client,
     create_role,
 )
-
-import pulumi
 
 # Config
 config = pulumi.Config()
@@ -34,6 +35,7 @@ k8s_clients = {
 }
 
 # Outputs
+pulumi.export("oidc_groups_claim", GROUPS_CLAIM)
 pulumi.export(
     "auth0_issuer_url",
     pulumi.Output.concat("https://", auth0_cfg.require("domain"), "/"),

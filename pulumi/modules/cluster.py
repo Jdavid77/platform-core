@@ -14,7 +14,7 @@ class OidcConfig:
     issuer_url: Input[str]
     client_id: Input[str] = "kubernetes"
     username_claim: str = "email"
-    groups_claim: str = "https://platform.internal/roles"
+    groups_claim: Input[str] = "https://platform.internal/roles"
 
 
 @dataclass
@@ -36,13 +36,13 @@ class ClusterManager:
         oidc = self.config.oidc
 
         def build(vals: list) -> str:
-            issuer_url, client_id = vals
+            issuer_url, client_id, groups_claim = vals
             api_server_cfg: Dict[str, Any] = {
                 "extraArgs": {
                     "oidc-issuer-url": issuer_url,
                     "oidc-client-id": client_id,
                     "oidc-username-claim": oidc.username_claim,
-                    "oidc-groups-claim": oidc.groups_claim,
+                    "oidc-groups-claim": groups_claim,
                 }
             }
             node: Dict[str, Any] = {
@@ -72,6 +72,7 @@ class ClusterManager:
         return Output.all(
             Output.from_input(oidc.issuer_url),
             Output.from_input(oidc.client_id),
+            Output.from_input(oidc.groups_claim),
         ).apply(build)
 
     def create(self) -> Tuple[local.Command, Output[str]]:

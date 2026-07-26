@@ -14,6 +14,7 @@ cls_info = config.require_object("cluster-info")
 shared = pulumi.StackReference("Jdavid77/pulumi-shared/shared")
 issuer_url = shared.get_output("auth0_issuer_url")
 client_id = shared.get_output(f"auth0_client_id_{pulumi.get_stack()}")
+groups_claim = shared.get_output("oidc_groups_claim")
 
 # Network
 
@@ -36,6 +37,7 @@ docker_net = network.ensure_docker_network(net_cfg)
 oidc_cfg = cluster.OidcConfig(
     issuer_url=issuer_url,
     client_id=client_id,
+    groups_claim=groups_claim,
 )
 
 # Cluster

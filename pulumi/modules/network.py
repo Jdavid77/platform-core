@@ -30,6 +30,6 @@ def ensure_docker_network(cfg: NetworkConfig) -> local.Command:
     return local.Command(
         "docker:net",
         create=create,
-        delete=f"docker network rm {cfg.dockerNetwork} || true",
+        delete=f"docker network rm {cfg.dockerNetwork}",
         triggers=[cfg.dockerNetwork, cfg.vpcCidr],
     )
