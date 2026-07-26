@@ -78,8 +78,8 @@ jobs:
       - name: Verify OIDC configured for platform-sandbox
         working-directory: pulumi-shared
         run: |
-          pulumi stack output auth0_issuer_url | grep -q 'https://'
-          pulumi stack output auth0_client_id_platform-sandbox | grep -qv '^$'
+          pulumi stack output auth0_issuer_url --stack shared | grep -q 'https://'
+          pulumi stack output auth0_client_id_platform-sandbox --stack shared | grep -qv '^$'
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -195,8 +195,8 @@ jobs:
       - name: Verify OIDC configured for app-dev
         working-directory: pulumi-shared
         run: |
-          pulumi stack output auth0_issuer_url | grep -q 'https://'
-          pulumi stack output auth0_client_id_app-dev | grep -qv '^$'
+          pulumi stack output auth0_issuer_url --stack shared | grep -q 'https://'
+          pulumi stack output auth0_client_id_app-dev --stack shared | grep -qv '^$'
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
