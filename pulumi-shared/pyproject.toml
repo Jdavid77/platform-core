@@ -1,0 +1,12 @@
+[project]
+name = "pulumi-shared"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "pulumi>=3.0.0,<4.0.0",
+    "pulumi-auth0>=3.49.0",
+    "pulumi-command>=1.2.1",
+    "pulumi-docker>=4.0.0",
+    "pulumi-keycloak>=5.0.0",
+    "pulumi-tls>=5.0.0",
+]

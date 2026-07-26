@@ -1,0 +1,14 @@
+config:
+  auth0:domain: dev-bv2yu2fncfqeitei.us.auth0.com
+  auth0:clientId:
+    secure: AAABACfQK9642VzT3LQ21kLNVeQmQtn8Lv21pRenib13qFbsNhd72AbkBc2xyV0dxmtw+eKAwH6SCPTawGoukA==
+  auth0:clientSecret:
+    secure: AAABAAVfTPSlXm2pj0uiibyLUH5fNp2Wdo0g9/VlC5h1WOOS3PdNKCqIckN8c0LgIBERrH3WvxbphkKJAJaJx676h88nH91noGexJVq2e3wAvM72+IWtD4wJduvYgeal
+  roles:
+    - name: platform-admin
+      description: "Kubernetes Cluster Admin"
+    - name: platform-user
+      description: "Kubernetes User (Read-Only)"
+  clusters:
+    - platform-sandbox
+    - app-dev
