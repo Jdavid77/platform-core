@@ -34,7 +34,7 @@ class FluxOperatorManager:
         self.stack_name = stack_name
         self.provider = provider
 
-    def install_operator(self) -> Release:
+    def _install_operator(self) -> Release:
         deps = [self.provider] if self.provider else []
         return Release(
             "flux-operator",
@@ -55,7 +55,7 @@ class FluxOperatorManager:
             ),
         )
 
-    def install_instance(self, operator: Release) -> k8s.apiextensions.CustomResource:
+    def _install_instance(self, operator: Release) -> k8s.apiextensions.CustomResource:
 
         sync = (
             {
@@ -94,5 +94,5 @@ class FluxOperatorManager:
         )
 
     def install(self):
-        operator = self.install_operator()
-        return operator, self.install_instance(operator)
+        operator = self._install_operator()
+        return operator, self._install_instance(operator)
