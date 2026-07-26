@@ -24,6 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Cache uv virtual environment
         uses: actions/cache@v4
         with:
@@ -45,6 +48,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Cache uv virtual environment
         uses: actions/cache@v4
@@ -68,6 +74,9 @@ jobs:
     needs: [lint-code, static-analysis]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Cache uv virtual environment
         uses: actions/cache@v4
@@ -102,6 +111,9 @@ jobs:
     needs: approve-shared
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Cache uv virtual environment
         uses: actions/cache@v4
