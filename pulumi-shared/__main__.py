@@ -1,7 +1,14 @@
 """Shared platform infrastructure — Auth0 IdP"""
 
+from modules.auth0 import (
+    Auth0ClientConfig,
+    Auth0RoleConfig,
+    create_groups_action,
+    create_kubernetes_client,
+    create_role,
+)
+
 import pulumi
-from modules.auth0 import Auth0ClientConfig, Auth0RoleConfig, create_kubernetes_client, create_groups_action, create_role
 
 # Config
 config = pulumi.Config()
@@ -27,6 +34,9 @@ k8s_clients = {
 }
 
 # Outputs
-pulumi.export("auth0_issuer_url", pulumi.Output.concat("https://", auth0_cfg.require("domain"), "/"))
+pulumi.export(
+    "auth0_issuer_url",
+    pulumi.Output.concat("https://", auth0_cfg.require("domain"), "/"),
+)
 for cluster, client in k8s_clients.items():
     pulumi.export(f"auth0_client_id_{cluster}", client.client_id)

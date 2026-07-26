@@ -1,21 +1,25 @@
 from dataclasses import dataclass, field
-from typing import List
 
 import pulumi_auth0 as auth0
+
 from pulumi import ResourceOptions
 
 
 @dataclass
 class Auth0ClientConfig:
     name: str
-    callbacks: List[str] = field(default_factory=lambda: ["http://localhost:8000"])
-    allowed_logout_urls: List[str] = field(default_factory=lambda: ["http://localhost:8000"])
-    web_origins: List[str] = field(default_factory=lambda: ["http://localhost:8000"])
+    callbacks: list[str] = field(default_factory=lambda: ["http://localhost:8000"])
+    allowed_logout_urls: list[str] = field(
+        default_factory=lambda: ["http://localhost:8000"]
+    )
+    web_origins: list[str] = field(default_factory=lambda: ["http://localhost:8000"])
+
 
 @dataclass
 class Auth0RoleConfig:
     name: str
     description: str
+
 
 def create_kubernetes_client(config: Auth0ClientConfig) -> auth0.Client:
     return auth0.Client(
@@ -32,13 +36,11 @@ def create_kubernetes_client(config: Auth0ClientConfig) -> auth0.Client:
         ),
     )
 
+
 def create_role(config: Auth0RoleConfig) -> None:
     auth0.Role(
         f"auth0:role:{config.name}",
-        auth0.RoleArgs(
-            name=config.name,
-            description=config.description
-        )
+        auth0.RoleArgs(name=config.name, description=config.description),
     )
 
 
@@ -62,7 +64,9 @@ def create_groups_action() -> auth0.TriggerAction:
             runtime="node18",
             deploy=True,
             code=_GROUPS_ACTION_CODE,
-            supported_triggers=auth0.ActionSupportedTriggersArgs(id="post-login", version="v3"),
+            supported_triggers=auth0.ActionSupportedTriggersArgs(
+                id="post-login", version="v3"
+            ),
         ),
     )
     return auth0.TriggerAction(

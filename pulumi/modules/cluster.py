@@ -1,8 +1,6 @@
-import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
-import pulumi
 import pulumi_command.local as local
 import yaml
 from pulumi import Input, Output, ResourceOptions
@@ -37,7 +35,7 @@ class ClusterManager:
     def _render_kind_config(self) -> Output[str]:
         oidc = self.config.oidc
 
-        def build(vals: Tuple[str, str]) -> str:
+        def build(vals: list) -> str:
             issuer_url, client_id = vals
             api_server_cfg: Dict[str, Any] = {
                 "extraArgs": {
@@ -49,9 +47,13 @@ class ClusterManager:
             }
             node: Dict[str, Any] = {
                 "role": "control-plane",
-                "extraPortMappings": [vars(pm) for pm in (self.net.extraPortMappings or [])],
+                "extraPortMappings": [
+                    vars(pm) for pm in (self.net.extraPortMappings or [])
+                ],
                 "kubeadmConfigPatches": [
-                    yaml.safe_dump({"kind": "ClusterConfiguration", "apiServer": api_server_cfg})
+                    yaml.safe_dump(
+                        {"kind": "ClusterConfiguration", "apiServer": api_server_cfg}
+                    )
                 ],
             }
             return yaml.safe_dump(
