@@ -1,0 +1,123 @@
+# =============================================================================
+# .github/workflows/pulumi-shared.yaml — shared infrastructure pipeline
+# =============================================================================
+# Runs on every push to main that touches pulumi-shared/.
+#
+# Prerequisites (Appendix A):
+#   - GitHub self-hosted runner registered with label: local_laptop_runner
+#   - pulumi CLI installed on runner
+#   - GitHub Environment "shared" configured with required reviewers
+#   - Repository secret: PULUMI_ACCESS_TOKEN
+# =============================================================================
+
+name: Pulumi Shared
+
+on:
+  push:
+    branches: [main]
+    paths: ["pulumi-shared/**"]
+
+jobs:
+  # ── Lint ─────────────────────────────────────────────────────────────────────
+  lint-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi-shared/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi-shared/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi-shared/
+
+      - name: Check code formatting with black
+        run: uv run --project pulumi-shared/ black --check --diff pulumi-shared/
+
+      - name: Type check with mypy
+        run: uv run --project pulumi-shared/ mypy pulumi-shared/ --ignore-missing-imports
+
+  # ── Static analysis ───────────────────────────────────────────────────────────
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi-shared/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi-shared/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi-shared/
+
+      - name: Lint with ruff
+        run: uv run --project pulumi-shared/ ruff check pulumi-shared/
+
+      - name: Security scan with bandit
+        run: uv run --project pulumi-shared/ bandit -r pulumi-shared/ -ll --exclude pulumi-shared/.venv
+
+  # ── Pulumi preview ───────────────────────────────────────────────────────────
+  preview-shared:
+    runs-on: ubuntu-latest
+    needs: [lint-code, static-analysis]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi-shared/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi-shared/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi-shared/
+
+      - uses: pulumi/actions@v6
+        with:
+          command: preview
+          stack-name: Jdavid77/pulumi-shared/shared
+          color: always
+          work-dir: pulumi-shared
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # ── Manual approval gate ──────────────────────────────────────────────────────
+  approve-shared:
+    runs-on: ubuntu-latest
+    needs: preview-shared
+    environment: shared
+    steps:
+      - run: echo "Deployment approved"
+
+  # ── Deploy ───────────────────────────────────────────────────────────────────
+  update-shared:
+    runs-on: ubuntu-latest
+    needs: approve-shared
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache uv virtual environment
+        uses: actions/cache@v4
+        with:
+          path: pulumi-shared/.venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('pulumi-shared/uv.lock') }}
+          restore-keys: uv-venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --project pulumi-shared/
+
+      - uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: Jdavid77/pulumi-shared/shared
+          color: always
+          work-dir: pulumi-shared
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
