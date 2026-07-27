@@ -9,11 +9,11 @@ config:
     podCidr: 10.2.128.0/20
     serviceCidr: 10.2.144.0/20
     extraPortMappings:
-    - hostPort: 7080
-      containerPort: 80
+    - hostPort: 8080
+      containerPort: 30080
       protocol: TCP
-    - hostPort: 7443
-      containerPort: 443
+    - hostPort: 8443
+      containerPort: 30443
       protocol: TCP
   flux:
     version: "2.9.x"

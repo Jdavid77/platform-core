@@ -10,10 +10,10 @@ config:
     serviceCidr: 10.1.144.0/20
     extraPortMappings:
     - hostPort: 9090
-      containerPort: 80
+      containerPort: 30080
       protocol: TCP
     - hostPort: 9443
-      containerPort: 443
+      containerPort: 30443
       protocol: TCP
   flux:
     version: "2.9.1"
