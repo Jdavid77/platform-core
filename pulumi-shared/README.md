@@ -2,6 +2,8 @@
 
 Pulumi stack that provisions shared Auth0 infrastructure used as the OIDC identity provider for Kubernetes clusters.
 
+> **Why Auth0 instead of Keycloak?** The book has you self-host Keycloak inside the Kubernetes cluster, but that's a chicken-and-egg problem here: the cluster's apiserver needs an OIDC issuer to come up with OIDC auth configured, and that issuer can't be a workload running on the same cluster it's meant to authenticate. Running Keycloak in Docker alongside kind was also considered, but keeping the two networks reachable from each other added more complexity than it solved. Auth0 sidesteps both problems as a hosted IdP that exists independently of the cluster's lifecycle.
+
 ## Project structure
 
 ```text
@@ -38,8 +40,6 @@ Downstream cluster stacks read these via `pulumi.StackReference`.
 
 ## Prerequisites
 
-- [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/)
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python toolchain)
 - An Auth0 tenant with a Machine-to-Machine application that has the **Auth0 Management API** authorized — its credentials go into the stack config
 
 ## Configuration
@@ -65,8 +65,10 @@ config:
 
 `clusters` controls which Auth0 clients get created (one per entry). `roles` controls which Auth0 roles get created.
 
-To encrypt a secret value:
+## Secrets management
 
-```bash
-pulumi config set --secret auth0:clientSecret <value>
-```
+Both scripts below need a `.env` file (gitignored) in `pulumi-shared/` with a `BW_PASSWORD` for unlocking the Bitwarden vault.
+
+**`secrets-setup/fetch_secrets.sh`** — pulls the Auth0 Management API credentials out of Bitwarden and writes them into pulumi config. It logs into Bitwarden, unlocks the vault, reads the **"Auth0 Secrets"** item, and sets `auth0:clientId` / `auth0:clientSecret` from its `pulumi-client-id` / `pulumi-client-secret` fields. This is the script to run before `pulumi up`.
+
+**`secrets-setup/inject_secrets.sh`** — the reverse direction. It reads local `*.json` files in `secrets-setup/` (see `auth0_secrets.json_example` for the expected shape) and creates or updates the matching item in Bitwarden. Use this to seed or update the "Auth0 Secrets" item itself, not to configure pulumi.

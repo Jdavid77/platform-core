@@ -9,10 +9,13 @@ This repo provisions the core platform: a local [kind](https://kind.sigs.k8s.io/
 
 ## Prerequisites
 
-- [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/)
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) — Python toolchain
-- Docker, [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
-- `kubectl` + [`kubelogin`](https://github.com/int128/kubelogin) plugin, [`flux`](https://fluxcd.io/flux/installation/) CLI, [`bats`](https://bats-core.readthedocs.io/)
+- [pulumi cli](https://www.pulumi.com/docs/get-started/install/)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- [docker](https://docs.docker.com/get-docker/)
+- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+- kubectl + [kubelogin](https://github.com/int128/kubelogin) (oidc-login plugin)
+- [flux cli](https://fluxcd.io/flux/installation/)
+- [bats](https://bats-core.readthedocs.io/)
 - [Bitwarden CLI](https://bitwarden.com/help/cli/) (`bw`) — used to fetch the Auth0 secrets
 - An Auth0 tenant (see [`pulumi-shared/README.md`](pulumi-shared/README.md))
 
@@ -20,17 +23,15 @@ To run the CI pipeline yourself, register a self-hosted runner (`RUNNER_TOKEN=<t
 
 ## What's in here
 
-**`pulumi/`** — the cluster stack. Creates a Docker network and a kind cluster (`local.Command` shelling out to `kind`), configures the kube-apiserver with OIDC flags pointed at Auth0, and installs the Flux operator so the cluster starts reconciling from [`platform-gitops`](https://github.com/Jdavid77/platform-gitops).
+**[`pulumi/`](pulumi/README.md)** — the cluster stack: kind cluster, OIDC config, Flux bootstrap.
 
-**`pulumi-shared/`** — the Auth0/OIDC identity provider stack that `pulumi/` reads from via `pulumi.StackReference`. Must be deployed before the cluster stack.
-
-> **Why Auth0 instead of Keycloak?** The book has you self-host Keycloak inside the Kubernetes cluster, but that's a chicken-and-egg problem here: the cluster's apiserver needs an OIDC issuer to come up with OIDC auth configured, and that issuer can't be a workload running on the same cluster it's meant to authenticate. Running Keycloak in Docker alongside kind was also considered, but keeping the two networks reachable from each other added more complexity than it solved. Auth0 sidesteps both problems as a hosted IdP that exists independently of the cluster's lifecycle.
+**[`pulumi-shared/`](pulumi-shared/README.md)** — the Auth0/OIDC identity provider stack. Must be deployed before the cluster stack.
 
 **`scripts/start-runner.sh`** — installs and starts the self-hosted GitHub Actions runner that the CI pipeline requires (`runs-on: self-hosted`).
 
-**`scripts/flux_reconcile.sh`** + **`smoke/`** — forces a Flux reconciliation and runs a Gateway smoke test through Istio to confirm the cluster is actually routing traffic.
+**`scripts/flux_reconcile.sh`** + **`smoke/`** — forces a Flux reconciliation and runs a Gateway smoke test through Istio to confirm the cluster is actually routing traffic. Run by CI in the `validate-sandbox` / `validate-app-dev` jobs.
 
-**`tests/infrastructure.bats`** — validates the Docker network, cluster reachability, and Flux health.
+**`tests/infrastructure.bats`** — validates the Docker network, cluster reachability, and Flux health. Also run by CI in the `validate-sandbox` / `validate-app-dev` jobs.
 
 ## CI/CD pipeline
 
@@ -62,37 +63,6 @@ app-dev (only on v* tags, once sandbox validates)
                                                      v
                                              (approve-app-dev) --> [update-app-dev] --> [validate-app-dev]
 ```
-
-## Getting started
-
-1. **Deploy the shared Auth0 stack first** (the cluster stack depends on its outputs):
-
-   ```bash
-   cd pulumi-shared
-   uv sync
-   cp .env.example .env   # fill in Bitwarden credentials
-   ./secrets-setup/fetch_secrets.sh
-   ./secrets-setup/inject_secrets.sh
-   pulumi up --stack shared
-   ```
-
-2. **Deploy the cluster stack:**
-
-   ```bash
-   cd ../pulumi
-   uv sync
-   pulumi stack select platform-sandbox   # or app-dev
-   pulumi up
-   ```
-
-3. **Fetch an OIDC-authenticated kubeconfig:**
-
-   ```bash
-   ./.scripts/get-oidc-kubeconfig.sh platform-sandbox
-   KUBECONFIG=~/.kube/platform-sandbox-oidc.yaml kubectl get nodes
-   ```
-
-   Requires the [`kubelogin`](https://github.com/int128/kubelogin) `kubectl oidc-login` plugin.
 
 ## Related repos
 
