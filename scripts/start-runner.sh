@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs and starts a GitHub Actions self-hosted runner on macOS.
+# Installs and starts a GitHub Actions self-hosted runner on Linux.
 #
 # Usage:
 #   RUNNER_TOKEN=<token> ./scripts/start-runner.sh
@@ -12,10 +12,17 @@ set -euo pipefail
 _raw_url="$(git remote get-url origin)"
 # Normalize SSH (git@github.com:org/repo.git) → HTTPS, strip trailing .git
 REPO_URL="$(echo "$_raw_url" | sed 's|git@github.com:|https://github.com/|; s|\.git$||')"
-RUNNER_NAME="${RUNNER_NAME:-platform-runner}"
-RUNNER_LABELS="${RUNNER_LABELS:-macos-runner}"
 RUNNER_DIR="${RUNNER_DIR:-../.actions-runner}"
 RUNNER_VERSION="${RUNNER_VERSION:-2.325.0}"
+
+case "$(uname -m)" in
+  x86_64) RUNNER_ARCH="x64" ;;
+  aarch64|arm64) RUNNER_ARCH="arm64" ;;
+  *) echo "Error: unsupported architecture $(uname -m)" >&2; exit 1 ;;
+esac
+
+RUNNER_NAME="${RUNNER_NAME:-${RUNNER_ARCH}-runner}"
+RUNNER_LABELS="${RUNNER_LABELS:-${RUNNER_ARCH}-runner}"
 
 if [[ -z "${RUNNER_TOKEN:-}" ]]; then
   echo "Error: set RUNNER_TOKEN before running this script." >&2
@@ -27,7 +34,7 @@ if [[ ! -f "${RUNNER_DIR}/run.sh" ]]; then
 
   echo "Downloading GitHub Actions runner v${RUNNER_VERSION}..."
   mkdir -p "${RUNNER_DIR}"
-  ARCHIVE="actions-runner-osx-arm64-${n}.tar.gz"
+  ARCHIVE="actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz"
   curl -fsSL \
     "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${ARCHIVE}" \
     -o "/tmp/${ARCHIVE}"
