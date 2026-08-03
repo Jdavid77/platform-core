@@ -45,7 +45,7 @@ pulumi-shared.yaml (push to main, touching pulumi-shared/**)
   [static-analysis] --+
 
 
-pulumi-sandbox.yaml (push to main touching pulumi/**, or tag v*)
+pulumi.yaml (push to main touching pulumi/**, or tag v*)
 ------------------------------------------------------------------
   [lint-code]       --+
                         +--> [pre-flight] --> [preview-sandbox]
