@@ -35,7 +35,7 @@ To run the CI pipeline yourself, register a self-hosted runner (`RUNNER_TOKEN=<t
 
 ## CI/CD pipeline
 
-Two independent workflows, one per Pulumi project. `pulumi-shared.yaml` runs on GitHub-hosted runners, since it only talks to the Auth0 API; `pulumi-sandbox.yaml` runs on the **self-hosted** runner (`scripts/start-runner.sh`) because it needs Docker to create the kind cluster. Approval gates are plain GitHub Environments with required reviewers — no extra tooling.
+Two independent workflows, one per Pulumi project. `pulumi-shared.yaml` runs on GitHub-hosted runners, since it only talks to the Auth0 API; `pulumi.yaml` runs on the **self-hosted** runner (`scripts/start-runner.sh`) because it needs Docker to create the kind cluster. Approval gates are plain GitHub Environments with required reviewers — no extra tooling.
 
 ```text
 pulumi-shared.yaml (push to main, touching pulumi-shared/**)
