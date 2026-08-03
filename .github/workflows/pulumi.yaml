@@ -12,7 +12,7 @@
 #   - Repository secret: PULUMI_ACCESS_TOKEN
 # =============================================================================
 
-name: Pulumi Sandbox
+name: Pulumi
 
 on:
   push:
