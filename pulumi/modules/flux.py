@@ -57,14 +57,16 @@ class FluxOperatorManager:
             ),
         )
 
-    def _install_age_secret(self, operator: Release) -> k8s.core.v1.Secret:
+    def _install_age_secret(
+        self, operator: Release, age_private_key: Input[str]
+    ) -> k8s.core.v1.Secret:
         return k8s.core.v1.Secret(
             "sops-age",
             metadata=k8s.meta.v1.ObjectMetaArgs(
                 name="sops-age",
                 namespace=self.config.namespace,
             ),
-            string_data={"age.agekey": self.age_private_key},
+            string_data={"age.agekey": age_private_key},
             opts=ResourceOptions(
                 provider=self.provider, depends_on=[operator], retain_on_delete=True
             ),
@@ -117,6 +119,6 @@ class FluxOperatorManager:
 
         instance_deps = []
         if self.age_private_key is not None:
-            instance_deps.append(self._install_age_secret(operator))
+            instance_deps.append(self._install_age_secret(operator, self.age_private_key))
 
         return operator, self._install_instance(operator, depends_on=instance_deps)
