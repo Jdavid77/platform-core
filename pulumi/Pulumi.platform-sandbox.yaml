@@ -1,20 +1,22 @@
 config:
-  cluster-info:
-    name: platform-sandbox
+  platform-core:cluster-info:
     kind-image: kindest/node:v1.36.1
+    name: platform-sandbox
     wait-seconds: 60
-  network:
+  platform-core:flux:
+    url: https://github.com/Jdavid77/platform-gitops
+    version: 2.9.x
+  platform-core:network:
     dockerNetwork: vpc-platform-sandbox
-    vpcCidr: 10.2.0.0/16
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 30443
+        hostPort: 8443
+        protocol: TCP
     podCidr: 10.2.128.0/20
     serviceCidr: 10.2.144.0/20
-    extraPortMappings:
-    - hostPort: 8080
-      containerPort: 30080
-      protocol: TCP
-    - hostPort: 8443
-      containerPort: 30443
-      protocol: TCP
-  flux:
-    version: "2.9.x"
-    url: "https://github.com/Jdavid77/platform-gitops"
+    vpcCidr: 10.2.0.0/16
+  sops:agePrivateKey:
+    secure: AAABANEnsojklgj6p3KcF+frLDRnCmeh5dUIPAr1pRf6gpFhY2+kuSkYM9q+i0SrpbASWKfhKysK4msB1u5UOUYRhEIZzb7yJvR+wG+leMk6+U1H4SlmeuBMWp/1NsU0basZdhs3EThY5XIja/EK/QU/iU45bO1cx/pU1497EaAKgKqBfYQoKLAuQDHc7H9c4u4fHyN/KB+vo+FOsg6HTkFFzeadIjWFPg1TXHHdZjDAIaEEsLImsNK23vBSecJPHfnfK+unxSAkd4FDpuyvwxvKAvw7Jh5bfSxXYg==

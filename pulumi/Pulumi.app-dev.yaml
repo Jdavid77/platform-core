@@ -1,20 +1,22 @@
 config:
-  cluster-info:
-    name: app-dev
+  platform-core:cluster-info:
     kind-image: kindest/node:v1.36.1
+    name: app-dev
     wait-seconds: 60
-  network:
+  platform-core:flux:
+    url: https://github.com/Jdavid77/platform-gitops
+    version: 2.9.1
+  platform-core:network:
     dockerNetwork: vpc-app-dev
-    vpcCidr: 10.1.0.0/16
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 9090
+        protocol: TCP
+      - containerPort: 30443
+        hostPort: 9443
+        protocol: TCP
     podCidr: 10.1.128.0/20
     serviceCidr: 10.1.144.0/20
-    extraPortMappings:
-    - hostPort: 9090
-      containerPort: 30080
-      protocol: TCP
-    - hostPort: 9443
-      containerPort: 30443
-      protocol: TCP
-  flux:
-    version: "2.9.1"
-    url: "https://github.com/Jdavid77/platform-gitops"
+    vpcCidr: 10.1.0.0/16
+  sops:agePrivateKey:
+    secure: AAABABgubwoMdWcxSeEd3+eFsBH2+TGEmynN/HOX+UIRuzu26qP3G+P7teBKr0FbzUXgy093u5IJG/V5nUtCbvRUd8CPszMgeK8mlzXTrzKhMxzM8ZQnmDVYbwDxT8aVIrkUt2VTpkLVDRpjMpykENzCuN0Q0YoyyhAaAb3/A9xOWs46FhIO6cVrsZCZsUbto4Fuwl4xM6igRX0m3QNRA3suk439v+tG+0rHUuwORKZVycEtdAWy3vlBcHa0rQJ5vWJ8cH0Rqihz5C56snmGnmALCW0HdUJz35qghg==

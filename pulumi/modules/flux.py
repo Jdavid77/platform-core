@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import pulumi_kubernetes as k8s
 from pulumi_kubernetes.helm.v3 import ReleaseArgs, Release
-from pulumi import ResourceOptions
+from pulumi import Input, ResourceOptions
 
 
 @dataclass
@@ -29,10 +29,12 @@ class FluxOperatorManager:
         config: FluxOperatorConfig,
         stack_name: str,
         provider: Optional[k8s.Provider] = None,
+        age_private_key: Optional[Input[str]] = None,
     ):
         self.config = config
         self.stack_name = stack_name
         self.provider = provider
+        self.age_private_key = age_private_key
 
     def _install_operator(self) -> Release:
         deps = [self.provider] if self.provider else []
@@ -55,7 +57,22 @@ class FluxOperatorManager:
             ),
         )
 
-    def _install_instance(self, operator: Release) -> k8s.apiextensions.CustomResource:
+    def _install_age_secret(self, operator: Release) -> k8s.core.v1.Secret:
+        return k8s.core.v1.Secret(
+            "sops-age",
+            metadata=k8s.meta.v1.ObjectMetaArgs(
+                name="sops-age",
+                namespace=self.config.namespace,
+            ),
+            string_data={"age.agekey": self.age_private_key},
+            opts=ResourceOptions(
+                provider=self.provider, depends_on=[operator], retain_on_delete=True
+            ),
+        )
+
+    def _install_instance(
+        self, operator: Release, depends_on: Optional[List] = None
+    ) -> k8s.apiextensions.CustomResource:
 
         sync = (
             {
@@ -89,10 +106,17 @@ class FluxOperatorManager:
             ),
             spec=spec,
             opts=ResourceOptions(
-                provider=self.provider, depends_on=[operator], retain_on_delete=True
+                provider=self.provider,
+                depends_on=[operator, *(depends_on or [])],
+                retain_on_delete=True,
             ),
         )
 
     def install(self) -> tuple[Release, k8s.apiextensions.CustomResource]:
         operator = self._install_operator()
-        return operator, self._install_instance(operator)
+
+        instance_deps = []
+        if self.age_private_key is not None:
+            instance_deps.append(self._install_age_secret(operator))
+
+        return operator, self._install_instance(operator, depends_on=instance_deps)

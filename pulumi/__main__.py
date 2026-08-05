@@ -59,7 +59,9 @@ cluster_cmd, kind_yaml = cluster_manager.create()
 kubeconfig = cluster_manager.get_kubeconfig(cluster_cmd)
 k8s = cluster_manager.get_provider(kubeconfig)
 
-# Flux
+# Flux (age_private_key is the SOPS key used to decrypt secrets in platform-services;
+# Flux won't start syncing until that Secret exists in-cluster)
+sops_cfg = pulumi.Config("sops")
 flux_obj = config.require_object("flux")
 flux_manager = flux.FluxOperatorManager(
     config=flux.FluxOperatorConfig(
@@ -69,8 +71,9 @@ flux_manager = flux.FluxOperatorManager(
     ),
     stack_name=pulumi.get_stack(),
     provider=k8s,
+    age_private_key=sops_cfg.require_secret("agePrivateKey"),
 )
-flux_manager.install()
+operator, instance = flux_manager.install()
 
 # Outputs
 pulumi.export("kubeconfig", pulumi.Output.secret(kubeconfig.stdout))
