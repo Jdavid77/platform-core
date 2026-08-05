@@ -28,8 +28,8 @@ class FluxOperatorManager:
         self,
         config: FluxOperatorConfig,
         stack_name: str,
+        age_private_key: Input[str],
         provider: Optional[k8s.Provider] = None,
-        age_private_key: Optional[Input[str]] = None,
     ):
         self.config = config
         self.stack_name = stack_name
@@ -73,7 +73,7 @@ class FluxOperatorManager:
         )
 
     def _install_instance(
-        self, operator: Release, depends_on: Optional[List] = None
+        self, operator: Release, age_secret: k8s.core.v1.Secret
     ) -> k8s.apiextensions.CustomResource:
 
         sync = (
@@ -109,16 +109,12 @@ class FluxOperatorManager:
             spec=spec,
             opts=ResourceOptions(
                 provider=self.provider,
-                depends_on=[operator, *(depends_on or [])],
+                depends_on=[operator, age_secret],
                 retain_on_delete=True,
             ),
         )
 
     def install(self) -> tuple[Release, k8s.apiextensions.CustomResource]:
         operator = self._install_operator()
-
-        instance_deps = []
-        if self.age_private_key is not None:
-            instance_deps.append(self._install_age_secret(operator, self.age_private_key))
-
-        return operator, self._install_instance(operator, depends_on=instance_deps)
+        age_secret = self._install_age_secret(operator, self.age_private_key)
+        return operator, self._install_instance(operator, age_secret)
