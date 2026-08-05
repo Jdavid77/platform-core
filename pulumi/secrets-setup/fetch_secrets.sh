@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -eou pipefail
+
+ENV_FILE="../.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "Can't find env file...exiting"
+    exit 1
+fi
+
+set -o allexport
+source "$ENV_FILE"
+set +o allexport
+
+if ! bw login --check &>/dev/null; then
+    bw login --apikey
+fi
+
+export BW_SESSION=$(bw unlock --passwordenv BW_PASSWORD --raw)
+
+if [ -z "$BW_SESSION" ]; then
+    echo "Error: Failed to unlock Bitwarden vault."
+    exit 1
+fi
+
+sops_item=$(bw get item "SOPS Age Key Platform Services" --session "$BW_SESSION")
+
+sops_age_private_key=$(echo "$sops_item" | jq -r '.fields[] | select(.name == "private-key") | .value')
+
+(
+    cd ..
+    pulumi config set --secret sops:agePrivateKey "$sops_age_private_key"
+)
+
+echo "Pulumi config updated."
