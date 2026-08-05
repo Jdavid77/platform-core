@@ -10,7 +10,9 @@ pulumi/
 ├── modules/
 │   ├── network.py       # Docker network for the kind cluster
 │   ├── cluster.py       # kind cluster creation + OIDC apiserver config
-│   └── flux.py          # Flux Operator install + FluxInstance sync config
+│   └── flux.py          # Flux Operator install, sops-age Secret, + FluxInstance sync config
+├── secrets-setup/
+│   └── fetch_secrets.sh # pulls the SOPS age private key out of Bitwarden into pulumi config
 ├── Pulumi.yaml               # Stack definition
 ├── Pulumi.platform-sandbox.yaml  # Stack config for the platform-sandbox stack
 └── Pulumi.app-dev.yaml           # Stack config for the app-dev stack
@@ -22,7 +24,7 @@ pulumi/
 
 **Kind cluster** — created by shelling out to the `kind` CLI (`local.Command`, since Pulumi has no native kind provider). The kubeadm config is patched with `--oidc-issuer-url` / `--oidc-client-id` pointed at the `pulumi-shared` stack's Auth0 tenant, read via `pulumi.StackReference("Jdavid77/pulumi-shared/shared")`.
 
-**Flux bootstrap** — installs the Flux Operator via Helm, then creates a `FluxInstance` that syncs from [`platform-gitops`](https://github.com/Jdavid77/platform-gitops) at `clusters/<stack-name>`.
+**Flux bootstrap** — installs the Flux Operator via Helm, creates the `flux-system/sops-age` Secret Flux needs to decrypt SOPS-encrypted manifests in [`platform-services`](https://github.com/Jdavid77/platform-services), then creates a `FluxInstance` syncing from [`platform-gitops`](https://github.com/Jdavid77/platform-gitops) at `clusters/<stack-name>` (waits on the secret first). Both stacks share one age keypair, pulled from Bitwarden via `secrets-setup/fetch_secrets.sh` into `sops:agePrivateKey` — see `secrets-setup/NOTE.md`.
 
 ## Stack outputs
 
