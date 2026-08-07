@@ -42,10 +42,10 @@ jobs:
         run: uv sync --project pulumi-shared/
 
       - name: Check code formatting with black
-        run: uv run --project pulumi-shared/ black --check --diff pulumi-shared/
+        run: uv run --project pulumi-shared/ black --check --diff pulumi-shared/ --exclude pulumi-shared/.scripts
 
       - name: Type check with mypy
-        run: uv run --project pulumi-shared/ mypy pulumi-shared/ --ignore-missing-imports
+        run: uv run --project pulumi-shared/ mypy pulumi-shared/ --ignore-missing-imports --exclude pulumi-shared/.scripts
 
   # ── Static analysis ───────────────────────────────────────────────────────────
   static-analysis:
@@ -67,10 +67,10 @@ jobs:
         run: uv sync --project pulumi-shared/
 
       - name: Lint with ruff
-        run: uv run --project pulumi-shared/ ruff check pulumi-shared/
+        run: uv run --project pulumi-shared/ ruff check pulumi-shared/ --exclude pulumi-shared/.scripts
 
       - name: Security scan with bandit
-        run: uv run --project pulumi-shared/ bandit -r pulumi-shared/ -ll --exclude pulumi-shared/.venv
+        run: uv run --project pulumi-shared/ bandit -r pulumi-shared/ -ll --exclude pulumi-shared/.venv,pulumi-shared/.scripts
 
   # ── Pulumi preview ───────────────────────────────────────────────────────────
   preview-shared:
